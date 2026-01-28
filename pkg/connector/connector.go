@@ -12,12 +12,12 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
-type Connector struct {
+type Torq struct {
 	client *torq.Client
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
+func (c *Torq) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
 		newUserBuilder(c.client),
 		newRoleBuilder(c.client),
@@ -25,7 +25,7 @@ func (c *Connector) ResourceSyncers(ctx context.Context) []connectorbuilder.Reso
 }
 
 // Metadata returns metadata about the connector.
-func (c *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
+func (c *Torq) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Torq Connector",
 		Description: "Connector sycing users and roles from Torq to Baton.",
@@ -34,7 +34,7 @@ func (c *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error)
 
 // Validate is called to ensure that the connector is properly configured. It should exercise any API credentials
 // to be sure that they are valid.
-func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, error) {
+func (c *Torq) Validate(ctx context.Context) (annotations.Annotations, error) {
 	_, err := c.client.ListUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error validating Torq connector: %w", err)
@@ -43,7 +43,7 @@ func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, clientId string, clientSecret string) (*Connector, error) {
+func New(ctx context.Context, clientId string, clientSecret string) (*Torq, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func New(ctx context.Context, clientId string, clientSecret string) (*Connector,
 		return nil, fmt.Errorf("torq-connector: failed to get token: %w", err)
 	}
 
-	return &Connector{
+	return &Torq{
 		client: torq.NewClient(httpClient, token),
 	}, nil
 }

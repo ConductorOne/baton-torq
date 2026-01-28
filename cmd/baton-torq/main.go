@@ -25,7 +25,7 @@ func main() {
 		"baton-torq",
 		getConnector,
 		cfg.Config,
-		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.Connector{}),
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.Torq{}),
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
