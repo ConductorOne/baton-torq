@@ -22,6 +22,11 @@ var (
 		field.WithDisplayName("Client Secret"),
 	)
 
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the Torq API URL (for testing)"),
+	)
+
 	// FieldRelationships defines relationships between the fields listed in
 	// Config that can be automatically validated.
 	FieldRelationships = []field.SchemaFieldRelationship{}
@@ -31,6 +36,7 @@ var (
 var Config = field.NewConfiguration([]field.SchemaField{
 	TorqClientId,
 	TorqClientSecret,
+	BaseURLField,
 })
 
 // ValidateConfig is run after the configuration is loaded, and should return an

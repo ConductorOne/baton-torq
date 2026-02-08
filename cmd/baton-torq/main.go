@@ -47,7 +47,7 @@ func getConnector(ctx context.Context, cc *cfg.Torq) (types.ConnectorServer, err
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, cc.TorqClientId, cc.TorqClientSecret)
+	cb, err := connector.New(ctx, cc.TorqClientId, cc.TorqClientSecret, cc.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

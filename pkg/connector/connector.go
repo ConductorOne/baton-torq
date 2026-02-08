@@ -43,7 +43,7 @@ func (c *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, clientId string, clientSecret string) (*Connector, error) {
+func New(ctx context.Context, clientId string, clientSecret string, baseURL string) (*Connector, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {
 		return nil, err
@@ -55,6 +55,6 @@ func New(ctx context.Context, clientId string, clientSecret string) (*Connector,
 	}
 
 	return &Connector{
-		client: torq.NewClient(httpClient, token),
+		client: torq.NewClient(httpClient, token, baseURL),
 	}, nil
 }

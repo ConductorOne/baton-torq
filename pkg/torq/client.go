@@ -13,7 +13,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
-const BaseUrl = "https://api.torq.io/public/v1alpha/"
+const DefaultBaseURL = "https://api.torq.io/public/v1alpha/"
 
 type AuthResponse struct {
 	AccessToken string `json:"access_token"`
@@ -22,12 +22,17 @@ type AuthResponse struct {
 type Client struct {
 	httpClient *http.Client
 	token      string
+	baseURL    string
 }
 
-func NewClient(httpClient *http.Client, token string) *Client {
+func NewClient(httpClient *http.Client, token string, baseURL string) *Client {
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
 	return &Client{
 		httpClient: httpClient,
 		token:      token,
+		baseURL:    baseURL,
 	}
 }
 
@@ -74,7 +79,7 @@ func (c *Client) listLocalUsers(ctx context.Context) ([]User, error) {
 		Users []User `json:"users"`
 	}
 
-	usersUrl, _ := url.JoinPath(BaseUrl, "users")
+	usersUrl, _ := url.JoinPath(c.baseURL, "users")
 	if err := c.doRequest(ctx, usersUrl, &res, nil); err != nil {
 		return nil, err
 	}
@@ -88,7 +93,7 @@ func (c *Client) listSsoUsers(ctx context.Context) ([]User, error) {
 		Users []User `json:"users"`
 	}
 
-	usersUrl, _ := url.JoinPath(BaseUrl, "users")
+	usersUrl, _ := url.JoinPath(c.baseURL, "users")
 	q := url.Values{}
 	q.Add("sso_provision", "true")
 	if err := c.doRequest(ctx, usersUrl, &res, q); err != nil {
@@ -127,8 +132,8 @@ func (c *Client) ListRoles(ctx context.Context, pageToken string) ([]Role, strin
 	q := url.Values{}
 	q.Add("page_token", pageToken)
 
-	url, _ := url.JoinPath(BaseUrl, "users/roles")
-	if err := c.doRequest(ctx, url, &res, q); err != nil {
+	rolesUrl, _ := url.JoinPath(c.baseURL, "users/roles")
+	if err := c.doRequest(ctx, rolesUrl, &res, q); err != nil {
 		return nil, "", err
 	}
 
