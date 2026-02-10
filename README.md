@@ -1,4 +1,4 @@
-# `baton-torq` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-torq.svg)](https://pkg.go.dev/github.com/conductorone/baton-torq) ![main ci](https://github.com/conductorone/baton-torq/actions/workflows/main.yaml/badge.svg)
+# `baton-torq` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-torq.svg)](https://pkg.go.dev/github.com/conductorone/baton-torq) ![verify](https://github.com/conductorone/baton-torq/actions/workflows/verify.yaml/badge.svg)
 
 `baton-torq` is a connector for Torq built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the Torq API to sync data about users and their roles in the workspace.
 Check out [Baton](https://github.com/conductorone/baton) to learn more about the project in general.
@@ -8,7 +8,7 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more about the
 ## Prerequisites
 
 - Access to the Torq Workspace.
-- Generate API token for your workspace. API token consists of a client_id and client_secret. To generate a token click on your avatar -> API Keys -> Create API Key. Store the client_id & client_secret as the client_secret won't be visible again. 
+- Generate API token for your workspace. API token consists of a client_id and client_secret. To generate a token click on your avatar -> API Keys -> Create API Key. Store the client_id & client_secret as the client_secret won't be visible again.
 
 ## brew
 
