@@ -16,6 +16,7 @@ import (
 const DefaultBaseURL = "https://api.torq.io/public/v1alpha/"
 
 type AuthResponse struct {
+	//nolint:gosec,nolintlint // G117: legitimate field name, not a credential
 	AccessToken string `json:"access_token"`
 }
 
@@ -54,7 +55,7 @@ func RequestAccessToken(ctx context.Context, clientID, clientSecret string) (str
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Basic "+authHeader)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := httpClient.Do(req)
+	resp, err := httpClient.Do(req) //nolint:gosec,nolintlint // G704: URL constructed from trusted config
 	if err != nil {
 		return "", err
 	}
@@ -156,7 +157,7 @@ func (c *Client) doRequest(ctx context.Context, path string, res interface{}, pa
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.token))
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) //nolint:gosec,nolintlint // G704: URL constructed from trusted config
 	if err != nil {
 		return err
 	}
