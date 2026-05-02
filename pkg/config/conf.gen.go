@@ -6,6 +6,7 @@ import "reflect"
 type Torq struct {
 	TorqClientId string `mapstructure:"torq-client-id"`
 	TorqClientSecret string `mapstructure:"torq-client-secret"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c *Torq) findFieldByTag(tagValue string) (any, bool) {
