@@ -32,15 +32,14 @@ func roleResource(role *torq.Role) (*v2.Resource, error) {
 		"role_description": role.Description,
 	}
 
-	roleTraitOptions := []rs.RoleTraitOption{
-		rs.WithRoleProfile(profile),
-	}
+	roleTraitOptions := []rs.RoleTraitOption{}
 
 	resource, err := rs.NewRoleResource(
 		role.Name,
 		roleResourceType,
 		role.ID,
 		roleTraitOptions,
+		rs.WithResourceProfile(profile),
 	)
 
 	if err != nil {

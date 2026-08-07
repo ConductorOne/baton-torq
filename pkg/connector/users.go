@@ -41,9 +41,7 @@ func userResource(user *torq.User) (*v2.Resource, error) {
 	}
 
 	userTraitOptions := []rs.UserTraitOption{
-		rs.WithUserProfile(profile),
 		rs.WithEmail(user.Email, true),
-		rs.WithStatus(status),
 	}
 
 	ret, err := rs.NewUserResource(
@@ -51,6 +49,8 @@ func userResource(user *torq.User) (*v2.Resource, error) {
 		userResourceType,
 		user.ID,
 		userTraitOptions,
+		rs.WithResourceProfile(profile),
+		rs.WithResourceStatus(v2.Status_ResourceStatus(status), ""),
 	)
 	if err != nil {
 		return nil, err
