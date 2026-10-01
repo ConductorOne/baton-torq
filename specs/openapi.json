@@ -1,0 +1,327 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Torq API (baton-torq connector surface)",
+    "version": "1.0.0",
+    "description": "This document describes ONLY the Torq API surface that the baton-torq connector calls. It is not a full description of Torq's public API. Scope was derived from pkg/torq/client.go (request sites) and settled against Torq's public API docs at https://developers.torq.io/apidocs (accessed 2026-10-01).\n\nThe connector talks to two hosts:\n- The data API host (regional, configurable) for /users and /users/roles.\n- A fixed auth host for the OAuth2 client-credentials token exchange.\n\nBase URL / region: the connector's compiled-in default data API base URL is `https://api.torq.io/public/v1alpha/` (see pkg/torq/client.go:16, `DefaultBaseURL`). It can be overridden via the `base-url` connector config field (pkg/config/config.go:25, hidden/CLI-only `--base-url` flag, described as \"Override the Torq API URL (for testing)\"). An operator can point this at Torq's EU host (`https://api.eu.torq.io/...`) to target an EU workspace; the connector itself does not auto-detect region.\n\nDiscrepancy worth flagging: Torq's public docs (developers.torq.io) describe the data API paths as `https://api.torq.io/v1alpha/users` and `https://api.torq.io/v1alpha/users/roles` (no `/public` path segment), while the connector's compiled-in default base URL includes `/public/v1alpha/`. This spec models the connector's actual runtime behavior (base URL + relative paths exactly as `pkg/torq/client.go` constructs them via `url.JoinPath`), not the vendor docs' literal path. Unverified which of the two is authoritative for the production API; see PR description.",
+    "contact": {
+      "name": "ConductorOne"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.torq.io/public/v1alpha",
+      "description": "Default Torq data API base URL (US region), as compiled into pkg/torq/client.go (DefaultBaseURL). Overridable via the connector's `base-url` config field (hidden/CLI-only --base-url flag) -- e.g. to `https://api.eu.torq.io/public/v1alpha` for an EU-region workspace. Used by the /users and /users/roles operations."
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Client-credentials token exchange. Fixed host, not covered by the `base-url` override."
+    },
+    {
+      "name": "Users",
+      "description": "Operations backing the connector's user sync."
+    },
+    {
+      "name": "Roles",
+      "description": "Operations backing the connector's role sync and role-membership grants."
+    }
+  ],
+  "paths": {
+    "/v1/auth/token": {
+      "post": {
+        "operationId": "requestAccessToken",
+        "summary": "Exchange client credentials for a bearer access token",
+        "description": "Called once per connector run from pkg/torq/client.go RequestAccessToken (client.go:40-75) to obtain the bearer token used to authenticate every subsequent request to the data API. Not affected by the `base-url` config field -- the host is hardcoded in the connector as `https://auth.torq.io`.\n\nVendor docs also list a regional EU auth host, `https://auth.eu.torq.io/v1/auth/token`, for workspaces on the eu.torq.io domain, but this connector has no config field to select it; RequestAccessToken always targets the US host.",
+        "tags": ["Auth"],
+        "servers": [
+          {
+            "url": "https://auth.torq.io",
+            "description": "Fixed Torq auth host used by RequestAccessToken (client.go:46). Not configurable via `base-url`. Vendor also publishes https://auth.eu.torq.io for EU-domain workspaces (unused by this connector)."
+          }
+        ],
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A successful response containing the bearer access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client ID or client secret. Documented by the vendor (developers.torq.io/apidocs/authentication); the connector does not parse this response body, it only checks for a non-2xx status code (client.go:65-67)."
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List users in the workspace",
+        "description": "Called twice per connector sync from pkg/torq/client.go: once by listLocalUsers (client.go:78-89), with the `sso_provision` query parameter omitted, and once by listSsoUsers (client.go:92-105), with `sso_provision=true` hardcoded. The public ListUsers method (client.go:108-124) concatenates both result sets. Also exercised by Connector.Validate (pkg/connector/connector.go:37-43) as the credential-validation probe.",
+        "tags": ["Users"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sso_provision",
+            "in": "query",
+            "required": false,
+            "description": "Filters users by provisioning method. The connector hardcodes this to `true` in listSsoUsers (client.go:99) to fetch SSO-provisioned users, and omits it entirely in listLocalUsers (client.go:83-84) to fetch the rest. Vendor docs state omitting it returns locally-provisioned users and that explicit `false` is equivalent to that same local-user behavior; the connector itself never sends `sso_provision=false` explicitly, only omits the parameter -- unverified whether that is identical to all-users or locally-provisioned-only on the vendor side.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUsersResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions for this resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/roles": {
+      "get": {
+        "operationId": "listRoles",
+        "summary": "List roles that can be assigned to users in the workspace",
+        "description": "Called from pkg/torq/client.go ListRoles (client.go:127-146), driven by pkg/connector/roles.go roleBuilder.List (roles.go:52-80) via the SDK's bag-based pagination token.",
+        "tags": ["Roles"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "description": "Cursor from a previous List roles response's `next_page_token`. The connector always sends this parameter (client.go:133-134), including an empty string on the first page of a sync. The connector never sets `page_size`, so the vendor's default page size (50, max 100 per vendor docs) applies.",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRolesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient permissions for this resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "HTTP Basic auth using the Torq API key (client_id as username, client_secret as password). See pkg/torq/client.go:47, torq-client-id / torq-client-secret config fields (pkg/config/config.go:10-23)."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Bearer token obtained from POST /v1/auth/token (requestAccessToken) and sent as `Authorization: Bearer <token>` on every data-API request. See pkg/torq/client.go:158-159."
+      }
+    },
+    "schemas": {
+      "AuthTokenRequest": {
+        "type": "object",
+        "description": "Form-encoded body sent by RequestAccessToken (client.go:48-50). The connector only ever sends the client_credentials grant.",
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "enum": ["client_credentials"],
+            "default": "client_credentials",
+            "description": "Hardcoded by the connector to `client_credentials` (client.go:49)."
+          }
+        },
+        "required": ["grant_type"]
+      },
+      "AuthResponse": {
+        "type": "object",
+        "description": "Response of the token endpoint, as decoded by pkg/torq/client.go AuthResponse struct (client.go:18-21). Torq's response also includes `expires_in` and `token_type` (confirmed via vendor docs sample response), but the connector does not read either field, so they are omitted here per the connector's actual struct.",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Bearer token used for subsequent data-API requests."
+          }
+        },
+        "required": ["access_token"]
+      },
+      "ListUsersResponse": {
+        "type": "object",
+        "description": "Envelope decoded by listLocalUsers/listSsoUsers (client.go:79-81, 93-95) as an anonymous `struct { Users []User \"json:\\\"users\\\"\" }`.",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "Fields match pkg/torq/models.go User struct (models.go:3-9) exactly. Vendor docs (developers.torq.io/apidocs/list-users) additionally document created_time and last_login_time on this object; both are omitted here because the connector's struct does not declare them. Per the vendor's raw schema metadata, none of these fields are marked required in the response -- all are modeled as optional here.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the user. Used by the connector as the resource ID and (via WithExternalID-equivalent identity) for role-grant matching against Role.ID."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "The user's email address. Used as the resource display name and UserTrait email."
+          },
+          "role_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the role assigned to the user. Matched against Role.ID in roleBuilder.Grants (pkg/connector/roles.go:100-118)."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["STATUS_UNSPECIFIED", "INVITATION_SENT", "VERIFIED"],
+            "default": "STATUS_UNSPECIFIED",
+            "description": "VERIFIED maps to v2.UserTrait_Status_STATUS_ENABLED; STATUS_UNSPECIFIED and INVITATION_SENT both map to v2.UserTrait_Status_STATUS_UNSPECIFIED in pkg/connector/users.go:34-42 (no connector-side status exists for INVITATION_SENT)."
+          },
+          "sso_provision": {
+            "type": "boolean",
+            "description": "True if the user was provisioned via SSO. Surfaced in the resource profile as `sso_provisioned`."
+          }
+        }
+      },
+      "ListRolesResponse": {
+        "type": "object",
+        "description": "Envelope decoded by ListRoles (client.go:128-131) as an anonymous `struct { Roles []Role \"json:\\\"roles\\\"\"; NextPageToken string \"json:\\\"next_page_token,omitempty\\\"\" }`.",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          "next_page_token": {
+            "type": "string",
+            "description": "Pagination cursor. Per vendor docs: present only when another page of results exists; its absence/empty value terminates the connector's pagination loop (client.go:141-145: `if res.NextPageToken != \"\" { return res.Roles, res.NextPageToken, nil }; return res.Roles, \"\", nil`)."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Default/error envelope documented by the vendor for 401/403/default responses on the data API (developers.torq.io/apidocs/list-users raw schema, accessed 2026-10-01). The connector does not parse this body; it is documented here for completeness only, not because client.go reads it.",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "description": "Fields match pkg/torq/models.go Role struct (models.go:11-15) exactly. Vendor docs additionally document a `scope_names` array on this object; it is omitted here because the connector's struct does not declare it. Per the vendor's raw schema metadata, none of these fields are marked required in the response -- all are modeled as optional here.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier of the role. Used as the role resource ID and matched against User.RoleID."
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the role. Used as the role resource display name."
+          },
+          "description": {
+            "type": "string",
+            "description": "The description of the role. Surfaced in the resource profile as `role_description`."
+          }
+        }
+      }
+    }
+  }
+}
